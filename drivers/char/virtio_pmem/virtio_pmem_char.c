@@ -88,10 +88,10 @@ static ssize_t pmem_write(struct file *file, const char __user *buf,
 	if (!pmem_addr)
 		return -ENOMEM;
 	temp_buf = kmalloc(count, GFP_USER);
-	if (!temp_buf)
+	if (!temp_buf) {
 		count = -ENOMEM;
 		goto out;
-
+	}
 	if (copy_from_user(temp_buf, buf, count)) {
 		count = -EFAULT;
 		goto out;
@@ -152,8 +152,8 @@ static int pmem_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vm_iomap_memory(vma, vpmem->start, vpmem->size) < 0)
 		return -EIO;
 
-	vma->vm_flags = VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
-			VM_MIXEDMAP | VM_READ | VM_WRITE;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
+			VM_MIXEDMAP | VM_READ | VM_WRITE);
 
 	return 0;
 }

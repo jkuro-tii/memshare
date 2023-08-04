@@ -1,55 +1,43 @@
-From e20f6b55e60d8ee45333b2259c8e3102d7443880 Mon Sep 17 00:00:00 2001
+From 37265f94d87bb76bc86eb6b91a3a8883c43e65ca Mon Sep 17 00:00:00 2001
 From: Jaroslaw Kurowski <jaroslaw.kurowski@tii.ae>
-Date: Thu, 3 Aug 2023 11:53:30 +0400
+Date: Fri, 4 Aug 2023 10:28:05 +0400
 Subject: Memory sharing driver
 
 ---
- drivers/Makefile                       |   4 +
- drivers/nvdimm/Makefile                |   4 +
- drivers/virtio_pmem/Makefile           |   1 +
- drivers/virtio_pmem/virtio_pmem_char.c | 236 +++++++++++++++++++++++++
- drivers/virtio_pmem/virtio_pmem_char.h |  50 ++++++
+ drivers/char/Makefile                       |   4 +
+ drivers/char/virtio_pmem/Makefile           |   1 +
+ drivers/char/virtio_pmem/virtio_pmem_char.c | 236 ++++++++++++++++++++
+ drivers/char/virtio_pmem/virtio_pmem_char.h |  50 +++++
+ drivers/nvdimm/Makefile                     |   4 +
  5 files changed, 295 insertions(+)
- create mode 100644 drivers/virtio_pmem/Makefile
- create mode 100644 drivers/virtio_pmem/virtio_pmem_char.c
- create mode 100644 drivers/virtio_pmem/virtio_pmem_char.h
+ create mode 100644 drivers/char/virtio_pmem/Makefile
+ create mode 100644 drivers/char/virtio_pmem/virtio_pmem_char.c
+ create mode 100644 drivers/char/virtio_pmem/virtio_pmem_char.h
 
-diff --git a/drivers/Makefile b/drivers/Makefile
-index bdf1c6614..f3dab92bd 100644
---- a/drivers/Makefile
-+++ b/drivers/Makefile
-@@ -189,3 +189,7 @@ obj-$(CONFIG_COUNTER)		+= counter/
- obj-$(CONFIG_MOST)		+= most/
- obj-$(CONFIG_PECI)		+= peci/
- obj-$(CONFIG_HTE)		+= hte/
+diff --git a/drivers/char/Makefile b/drivers/char/Makefile
+index c5f532e41..6133069c6 100644
+--- a/drivers/char/Makefile
++++ b/drivers/char/Makefile
+@@ -44,3 +44,7 @@ obj-$(CONFIG_PS3_FLASH)		+= ps3flash.o
+ obj-$(CONFIG_XILLYBUS_CLASS)	+= xillybus/
+ obj-$(CONFIG_POWERNV_OP_PANEL)	+= powernv-op-panel.o
+ obj-$(CONFIG_ADI)		+= adi.o
 +#
 +#
 +#
 +obj-y                          += virtio_pmem/
-diff --git a/drivers/nvdimm/Makefile b/drivers/nvdimm/Makefile
-index ba0296dca..2d7162292 100644
---- a/drivers/nvdimm/Makefile
-+++ b/drivers/nvdimm/Makefile
-@@ -31,3 +31,7 @@ libnvdimm-$(CONFIG_NVDIMM_KEYS) += security.o
- TOOLS := ../../tools
- TEST_SRC := $(TOOLS)/testing/nvdimm/test
- obj-$(CONFIG_NVDIMM_TEST_BUILD) += $(TEST_SRC)/iomap.o
-+#
-+#
-+#
-+obj-y += nd_virtio.o
-diff --git a/drivers/virtio_pmem/Makefile b/drivers/virtio_pmem/Makefile
+diff --git a/drivers/char/virtio_pmem/Makefile b/drivers/char/virtio_pmem/Makefile
 new file mode 100644
 index 000000000..c3917fa4b
 --- /dev/null
-+++ b/drivers/virtio_pmem/Makefile
++++ b/drivers/char/virtio_pmem/Makefile
 @@ -0,0 +1 @@
 +obj-y += virtio_pmem_char.o
-diff --git a/drivers/virtio_pmem/virtio_pmem_char.c b/drivers/virtio_pmem/virtio_pmem_char.c
+diff --git a/drivers/char/virtio_pmem/virtio_pmem_char.c b/drivers/char/virtio_pmem/virtio_pmem_char.c
 new file mode 100644
-index 000000000..a59287aa9
+index 000000000..186a33516
 --- /dev/null
-+++ b/drivers/virtio_pmem/virtio_pmem_char.c
++++ b/drivers/char/virtio_pmem/virtio_pmem_char.c
 @@ -0,0 +1,236 @@
 +// Copyright 2022-2023 TII (SSRC) and the Ghaf contributors
 +// SPDX-License-Identifier: Apache-2.0
@@ -141,10 +129,10 @@ index 000000000..a59287aa9
 +	if (!pmem_addr)
 +		return -ENOMEM;
 +	temp_buf = kmalloc(count, GFP_USER);
-+	if (!temp_buf)
++	if (!temp_buf) {
 +		count = -ENOMEM;
 +		goto out;
-+
++	}
 +	if (copy_from_user(temp_buf, buf, count)) {
 +		count = -EFAULT;
 +		goto out;
@@ -205,8 +193,8 @@ index 000000000..a59287aa9
 +	if (vm_iomap_memory(vma, vpmem->start, vpmem->size) < 0)
 +		return -EIO;
 +
-+	vma->vm_flags = VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
-+			VM_MIXEDMAP | VM_READ | VM_WRITE;
++	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
++			VM_MIXEDMAP | VM_READ | VM_WRITE);
 +
 +	return 0;
 +}
@@ -287,11 +275,11 @@ index 000000000..a59287aa9
 +MODULE_DEVICE_TABLE(virtio, id_table);
 +MODULE_DESCRIPTION("Virtio pmem char driver");
 +MODULE_LICENSE("GPL");
-diff --git a/drivers/virtio_pmem/virtio_pmem_char.h b/drivers/virtio_pmem/virtio_pmem_char.h
+diff --git a/drivers/char/virtio_pmem/virtio_pmem_char.h b/drivers/char/virtio_pmem/virtio_pmem_char.h
 new file mode 100644
 index 000000000..aa06755f8
 --- /dev/null
-+++ b/drivers/virtio_pmem/virtio_pmem_char.h
++++ b/drivers/char/virtio_pmem/virtio_pmem_char.h
 @@ -0,0 +1,50 @@
 +/* SPDX-License-Identifier: Apache-2.0 */
 +/*
@@ -343,6 +331,18 @@ index 000000000..aa06755f8
 +void virtio_pmem_host_ack(struct virtqueue *vq);
 +int async_pmem_flush(struct nd_region *nd_region, struct bio *bio);
 +#endif
+diff --git a/drivers/nvdimm/Makefile b/drivers/nvdimm/Makefile
+index ba0296dca..7a0817809 100644
+--- a/drivers/nvdimm/Makefile
++++ b/drivers/nvdimm/Makefile
+@@ -31,3 +31,7 @@ libnvdimm-$(CONFIG_NVDIMM_KEYS) += security.o
+ TOOLS := ../../tools
+ TEST_SRC := $(TOOLS)/testing/nvdimm/test
+ obj-$(CONFIG_NVDIMM_TEST_BUILD) += $(TEST_SRC)/iomap.o
++#
++#
++#
++obj-m += nd_virtio.o
 -- 
 2.41.0
 

@@ -1,4 +1,4 @@
 #
 #
 #
-obj-y += nd_virtio.o
+obj-m += nd_virtio.o
